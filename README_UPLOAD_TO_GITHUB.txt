@@ -1,1 +1,1 @@
-Upload the contents of this folder to GitHub Pages. The dashboard entry point is index.html.
+Upload index.html to GitHub Pages. This v104 build only tightens the lease comp table columns and adds annual escalation, free rent, and TIA columns.

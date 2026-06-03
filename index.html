@@ -270,7 +270,36 @@ tr:hover { background:#fffbe1; cursor:pointer; }
 
 .lease-comp-pin { width:20px; height:20px; border-radius:999px; background:#2DA9BF; border:2px solid #ffffff; box-shadow:0 2px 7px rgba(0,0,0,.34); display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:900; color:#ffffff; font-family:Arial, Helvetica, sans-serif; }
 .lease-comp-table-note { color:#677084; font-size:11px; padding:8px 14px; border-bottom:1px solid var(--line); background:#fbfcff; }
+.lease-comp-controls { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:8px 14px; border-bottom:1px solid var(--line); background:#fff; }
+.lease-comp-controls input, .lease-comp-controls select { border:1px solid var(--line); border-radius:10px; padding:7px 9px; font-size:12px; color:var(--navy); background:#fff; }
+.lease-comp-controls input { min-width:220px; flex:1 1 240px; }
+.lease-comp-controls select { min-width:130px; }
+.lease-comp-controls button { border:1px solid var(--line); background:#f6f7f9; color:var(--navy); border-radius:999px; padding:7px 11px; font-size:12px; font-weight:700; cursor:pointer; }
+.lease-comp-controls button:hover { background:#fff8bf; border-color:var(--savills-yellow); }
+#leaseCompTable tbody tr { cursor:pointer; }
+#leaseCompTable tbody tr:hover { background:#fffdf0; }
+#leaseCompTable th.sortable { cursor:pointer; user-select:none; white-space:nowrap; }
+#leaseCompTable th.sortable:hover { background:#fff8bf; color:var(--navy); }
+#leaseCompTable th.sortable.active { background:#fffbe1; color:var(--navy); }
+
 #leaseCompTable td b { color:#25273A; }
+
+#leaseCompTable { table-layout:fixed; width:100%; }
+#leaseCompTable th, #leaseCompTable td { padding:7px 8px; vertical-align:top; line-height:1.18; }
+#leaseCompTable th { font-size:10px; }
+#leaseCompTable td { font-size:11px; }
+#leaseCompTable .col-qtr { width:72px; }
+#leaseCompTable .col-tenant { width:190px; }
+#leaseCompTable .col-address { width:205px; }
+#leaseCompTable .col-city { width:120px; }
+#leaseCompTable .col-sf { width:92px; text-align:right; }
+#leaseCompTable .col-type { width:92px; }
+#leaseCompTable .col-rent { width:105px; text-align:right; }
+#leaseCompTable .col-escalation { width:92px; text-align:center; }
+#leaseCompTable .col-free-rent { width:82px; text-align:center; }
+#leaseCompTable .col-tia { width:135px; }
+#leaseCompTable .col-expiration { width:96px; }
+#leaseCompTable td.col-address, #leaseCompTable td.col-tia, #leaseCompTable td.col-tenant { overflow-wrap:anywhere; }
 
 </style>
 </head>
@@ -373,15 +402,24 @@ tr:hover { background:#fffbe1; cursor:pointer; }
 
     <div class='table-panel hidden' id='compTablePanel'>
       <div class='lease-comp-table-note'>Sample market lease comps are a separate overlay and table. Current comp sets include Lehigh Valley and Rock Hill / Charlotte market comps; plotted rows use available mapped coordinates.</div>
+      <div class='lease-comp-controls'>
+        <input id='leaseCompSearch' type='search' placeholder='Filter comps by tenant, address, city...' oninput='applyLeaseCompFilters()'>
+        <select id='leaseCompTypeFilter' onchange='applyLeaseCompFilters()'><option value=''>All types</option></select>
+        <select id='leaseCompRegionFilter' onchange='applyLeaseCompFilters()'><option value=''>All comp sets</option></select>
+        <button onclick='resetLeaseCompFilters()'>Clear</button>
+      </div>
       <table id='leaseCompTable'><thead><tr>
-        <th>Tenant</th>
-        <th>Address</th>
-        <th>City</th>
-        <th>SF</th>
-        <th>Type</th>
-        <th>Starting NNN rent</th>
-        <th>Expiration</th>
-        <th>Source</th>
+        <th class='sortable col-qtr' data-comp-sort='signedQuarter' onclick="setLeaseCompSort('signedQuarter')">Quarter signed <span class='sort-indicator'></span></th>
+        <th class='sortable col-tenant' data-comp-sort='tenant' onclick="setLeaseCompSort('tenant')">Tenant <span class='sort-indicator'></span></th>
+        <th class='sortable col-address' data-comp-sort='address' onclick="setLeaseCompSort('address')">Address <span class='sort-indicator'></span></th>
+        <th class='sortable col-city' data-comp-sort='city' onclick="setLeaseCompSort('city')">City <span class='sort-indicator'></span></th>
+        <th class='sortable col-sf' data-comp-sort='sf' onclick="setLeaseCompSort('sf')">SF <span class='sort-indicator'></span></th>
+        <th class='sortable col-type' data-comp-sort='type' onclick="setLeaseCompSort('type')">Type <span class='sort-indicator'></span></th>
+        <th class='sortable col-rent' data-comp-sort='rent' onclick="setLeaseCompSort('rent')">NNN rent <span class='sort-indicator'></span></th>
+        <th class='sortable col-escalation' data-comp-sort='escalations' onclick="setLeaseCompSort('escalations')">Ann. escalation <span class='sort-indicator'></span></th>
+        <th class='sortable col-free-rent' data-comp-sort='abatementMonths' onclick="setLeaseCompSort('abatementMonths')">Free rent <span class='sort-indicator'></span></th>
+        <th class='sortable col-tia' data-comp-sort='ti' onclick="setLeaseCompSort('ti')">TIA <span class='sort-indicator'></span></th>
+        <th class='sortable col-expiration' data-comp-sort='expiration' onclick="setLeaseCompSort('expiration')">Expiration <span class='sort-indicator'></span></th>
       </tr></thead><tbody></tbody></table>
     </div>
     <section class='insights-panel hidden' id='insightsPanel'>
@@ -422,7 +460,11 @@ const DATA = [{"id":1,"building":"1020 Derwent Way","address":"1020 Derwent Way"
 let map, clusterLayer, savillsOfficeLayer, competitorLayer, leaseCompLayer, lehighValleyLayer, current = DATA.slice(), currentInView = DATA.slice();
 let mapPresetMode = 'portfolio';
 let selectedLocationId = null;
+let selectedLeaseCompId = null;
 let tableSort = { key:'sf', dir:'desc' };
+let leaseCompSort = { key:'sf', dir:'desc' };
+let lastLeaseCompRows = [];
+let leaseCompFilterOptionsReady = false;
 let eastdilMode = false;
 function isOwnedLocation(r) { return /owned|jv/i.test(r.occupancy || ''); }
 function ownershipLabel(r) { return isOwnedLocation(r) ? ((r.occupancy || '').toLowerCase().includes('jv') ? 'Owned / JV' : 'Owned') : 'Leased'; }
@@ -742,7 +784,7 @@ function openMarketReport(reportName) {
   const openNew = document.getElementById('reportModalOpenNew');
   if (!modal || !body) return;
   if (title) title.textContent = reportName;
-  if (openNew) { openNew.href = pdfSrc || pages[0] || '#'; openNew.textContent = 'Open in new tab'; openNew.style.display = 'inline-flex'; }
+  if (openNew) openNew.href = pdfSrc || pages[0] || '#';
   if (pages.length) {
     body.innerHTML = pages.map((src, i) => `<img class='report-page-image' src='${src}' alt='${esc(reportName)} page ${i+1}'>`).join('');
   } else {
@@ -1294,46 +1336,224 @@ function renderLeaseComps() {
   });
   renderLeaseCompTable(leaseCompRowsInMapView());
 }
+function isLeaseCompPanelActive() {
+  const compPanel = document.getElementById('compTablePanel');
+  return !!(compPanel && !compPanel.classList.contains('hidden'));
+}
+function leaseCompRentLabel(c) {
+  return Number.isFinite(c.rent) && c.rent > 0 ? `$${c.rent.toFixed(2)} PSF NNN` : 'Not available';
+}
+function filteredSortedLeaseCompRows(rows) {
+  const filters = getLeaseCompFilters();
+  return (rows || [])
+    .filter(c => leaseCompMatchesFilters(c, filters))
+    .sort((a,b)=>{
+      const av = leaseCompSortValue(a, leaseCompSort.key);
+      const bv = leaseCompSortValue(b, leaseCompSort.key);
+      let result = 0;
+      if (typeof av === 'number' && typeof bv === 'number') result = av - bv;
+      else result = String(av).localeCompare(String(bv));
+      return leaseCompSort.dir === 'asc' ? result : -result;
+    });
+}
+function showLeaseCompList(rows) {
+  selectedLeaseCompId = null;
+  const title = document.getElementById('detailPanelTitle');
+  if (title) title.textContent = 'Lease comps in view';
+  const el = document.getElementById('detail');
+  if (!el) return;
+  const sorted = filteredSortedLeaseCompRows(rows || []);
+  if (!sorted.length) {
+    el.innerHTML = `<div class='detail-card'>No lease comps are currently visible in the map view.</div>`;
+    return;
+  }
+  const totalSf = sorted.reduce((s,c)=>s+(Number(c.sf)||0),0);
+  const rents = sorted.map(c=>Number(c.rent)).filter(v=>Number.isFinite(v) && v>0);
+  const avgRent = rents.length ? rents.reduce((a,b)=>a+b,0)/rents.length : 0;
+  const sets = new Set(sorted.map(c=>c.region).filter(Boolean)).size;
+  el.innerHTML = `
+    <div class='location-view-kpis'>
+      <div class='location-view-kpi accent'><div class='kpi-num'>${sorted.length.toLocaleString()}</div><div class='kpi-label'>Lease comps in view</div></div>
+      <div class='location-view-kpi accent'><div class='kpi-num'>${totalSf ? compactSF(totalSf) : 'N/A'}</div><div class='kpi-label'>SF in view</div></div>
+      <div class='location-view-kpi'><div class='kpi-num'>${avgRent ? '$' + avgRent.toFixed(2) : 'N/A'}</div><div class='kpi-label'>Avg. NNN rent</div></div>
+      <div class='location-view-kpi'><div class='kpi-num'>${sets.toLocaleString()}</div><div class='kpi-label'>Comp sets</div></div>
+    </div>
+    <div class='panel-help'>Click a comp below to expand the full transaction detail.</div>
+    <div class='location-mini-list'>${sorted.map(c=>`
+      <div class='location-mini-card' data-comp-id='${esc(c.id || '')}'>
+        <div class='location-mini-title'>${esc(c.tenant || 'Tenant not disclosed')}</div>
+        <div class='location-mini-sub'>${esc(c.address || c.property || '')}<br>${esc(c.city || '')}, ${esc(c.state || '')} | ${esc(c.region || 'Industrial lease comp')}</div>
+        <div class='location-mini-metrics'>
+          <div>SF<br><b>${c.sf ? Number(c.sf).toLocaleString() : 'N/A'}</b></div>
+          <div>Rent<br><b>${leaseCompRentLabel(c).replace(' PSF NNN','')}</b></div>
+          <div>Signed<br><b>${esc(c.signedQuarter || 'N/A')}</b></div>
+          <div>Type<br><b>${esc(c.type || 'N/A')}</b></div>
+          <div>Expiration<br><b>${esc(c.expiration || 'N/A')}</b></div>
+        </div>
+      </div>`).join('')}</div>`;
+  el.querySelectorAll('.location-mini-card').forEach(card=>card.addEventListener('click',()=>{
+    const c = LEHIGH_VALLEY_LEASE_COMPS.find(x=>String(x.id || '')===String(card.dataset.compId || ''));
+    if (c) { showLeaseCompDetail(c); if (map && Number.isFinite(c.lat) && Number.isFinite(c.lon)) map.setView([c.lat,c.lon], Math.max(map.getZoom(), 12)); }
+  }));
+}
+function updateLeaseCompPanelFromView(rows) {
+  if (!isLeaseCompPanelActive()) return;
+  if (selectedLeaseCompId && (rows || []).some(c=>String(c.id || '')===String(selectedLeaseCompId))) return;
+  showLeaseCompList(rows || []);
+}
+function backToLeaseCompList() {
+  selectedLeaseCompId = null;
+  showLeaseCompList(lastLeaseCompRows || leaseCompRowsInMapView());
+}
 function showLeaseCompDetail(c) {
-  const panel = document.getElementById('locationPanel');
+  selectedLeaseCompId = c && c.id ? c.id : null;
+  const title = document.getElementById('detailPanelTitle');
+  if (title) title.textContent = 'Selected lease comp';
+  const panel = document.getElementById('detail');
   if (!panel) return;
-  const rent = Number.isFinite(c.rent) && c.rent > 0 ? `$${c.rent.toFixed(2)} PSF NNN` : 'Not available';
-  panel.innerHTML = `<div class='detail-card'><h3>${esc(c.tenant || 'Tenant not disclosed')}</h3>
-    <div class='detail-sub'>${esc(c.region || 'Industrial lease comp')}</div>
+  const rent = leaseCompRentLabel(c);
+  panel.innerHTML = `<div class='detail-card'>
+    <div class='detail-card-header'><div></div><button class='back-to-list' onclick='backToLeaseCompList()'>Back to lease comps in view</button></div>
+    <h3>${esc(c.tenant || 'Tenant not disclosed')}</h3>
+    <div class='detail-sub'>${esc(c.address || c.property || '')}<br>${esc(c.city || '')}, ${esc(c.state || '')} | ${esc(c.region || 'Industrial lease comp')}</div>
     <div class='badges'>${c.signedQuarter ? `<span class='badge'>Signed ${esc(c.signedQuarter)}</span>` : ''}<span class='badge'>${esc(c.type || 'Transaction')}</span><span class='badge'>${rent}</span></div>
     <div class='detail-grid'>
+      <div class='info'><div class='lbl'>Tenant</div><div class='val'>${esc(c.tenant || 'Not available')}</div></div>
       <div class='info'><div class='lbl'>Address</div><div class='val'>${esc(c.address || c.property || 'Not available')}</div></div>
       <div class='info'><div class='lbl'>City</div><div class='val'>${esc(c.city || '')}, ${esc(c.state || '')}</div></div>
       <div class='info'><div class='lbl'>Transaction SF</div><div class='val'>${c.sf ? Number(c.sf).toLocaleString() + ' SF' : 'Not available'}</div></div>
       ${c.buildingSize ? `<div class='info'><div class='lbl'>Building size</div><div class='val'>${Number(c.buildingSize).toLocaleString()} SF</div></div>` : ''}
-      ${c.execution ? `<div class='info'><div class='lbl'>Execution</div><div class='val'>${esc(c.execution)}</div></div>` : ''}
-      ${c.commencement ? `<div class='info'><div class='lbl'>Commencement</div><div class='val'>${esc(c.commencement)}</div></div>` : ''}
+      <div class='info'><div class='lbl'>Transaction type</div><div class='val'>${esc(c.type || 'Not available')}</div></div>
+      <div class='info'><div class='lbl'>Quarter signed</div><div class='val'>${esc(c.signedQuarter || 'Not available')}</div></div>
+      ${c.execution ? `<div class='info'><div class='lbl'>Execution date</div><div class='val'>${esc(c.execution)}</div></div>` : ''}
+      ${c.commencement ? `<div class='info'><div class='lbl'>Commencement date</div><div class='val'>${esc(c.commencement)}</div></div>` : ''}
       ${c.termMonths ? `<div class='info'><div class='lbl'>Term</div><div class='val'>${Number(c.termMonths).toLocaleString()} months</div></div>` : ''}
-      ${c.escalations ? `<div class='info'><div class='lbl'>Escalations</div><div class='val'>${esc(c.escalations)}</div></div>` : ''}
+      <div class='info'><div class='lbl'>Starting NNN rent</div><div class='val'>${rent}</div></div>
+      ${c.escalations ? `<div class='info'><div class='lbl'>Annual escalations</div><div class='val'>${esc(c.escalations)}</div></div>` : ''}
       ${Number.isFinite(c.abatementMonths) ? `<div class='info'><div class='lbl'>Rent abatement</div><div class='val'>${c.abatementMonths} months</div></div>` : ''}
       ${c.ti ? `<div class='info'><div class='lbl'>TI / buildout</div><div class='val'>${esc(c.ti)}</div></div>` : ''}
       <div class='info'><div class='lbl'>Expiration</div><div class='val'>${esc(c.expiration || 'Not available')}</div></div>
-      <div class='info'><div class='lbl'>Source</div><div class='val'>${esc(c.source || 'Not available')}</div></div>
+      <div class='info'><div class='lbl'>Comp set</div><div class='val'>${esc(c.region || 'Not available')}</div></div>
       <div class='info'><div class='lbl'>Potential NFI customer</div><div class='val'>${esc(c.futureCustomer || 'Not available')}</div></div>
     </div>
     ${c.notes ? `<div class='detail-note'>${esc(c.notes)}</div>` : ''}
   </div>`;
 }
+function leaseCompQuarterRank(q) {
+  const m = String(q || '').trim().match(/^(\d)Q(\d{2})$/i);
+  if (!m) return 0;
+  return (2000 + Number(m[2])) * 4 + Number(m[1]);
+}
+function leaseCompDateRank(v) {
+  const d = new Date(v || '');
+  return Number.isFinite(d.getTime()) ? d.getTime() : 0;
+}
+function compEscalationLabel(c) {
+  return c.escalations || c.annualEscalations || c.annualEscalation || '';
+}
+function compEscalationRank(c) {
+  const raw = String(compEscalationLabel(c) || '').replace('%','').trim();
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : 0;
+}
+function compFreeRentLabel(c) {
+  if (c.abatementMonths === 0) return '0 mo.';
+  if (Number.isFinite(Number(c.abatementMonths)) && Number(c.abatementMonths) > 0) return Number(c.abatementMonths) + ' mo.';
+  return c.freeRent || c.rentAbatement || '';
+}
+function compFreeRentRank(c) {
+  const n = Number(c.abatementMonths);
+  if (Number.isFinite(n)) return n;
+  const m = String(compFreeRentLabel(c) || '').match(/[0-9.]+/);
+  return m ? Number(m[0]) : 0;
+}
+function compTiaLabel(c) {
+  return c.ti || c.tia || c.tiAllowance || '';
+}
+function compTiaRank(c) {
+  const txt = String(compTiaLabel(c) || '');
+  const m = txt.match(/\$\s*([0-9]+(?:\.[0-9]+)?)/);
+  return m ? Number(m[1]) : 0;
+}
+function leaseCompSortValue(c, key) {
+  if (key === 'sf') return Number(c.sf || 0);
+  if (key === 'rent') return Number(c.rent || 0);
+  if (key === 'abatementMonths') return compFreeRentRank(c);
+  if (key === 'escalations') return compEscalationRank(c);
+  if (key === 'ti') return compTiaRank(c);
+  if (key === 'expiration') return leaseCompDateRank(c.expiration);
+  if (key === 'signedQuarter') return leaseCompQuarterRank(c.signedQuarter);
+  if (key === 'city') return `${c.city || ''}, ${c.state || ''}`.toLowerCase();
+  return String(c[key] || '').toLowerCase();
+}
+function setLeaseCompSort(key) {
+  leaseCompSort = { key, dir: leaseCompSort.key === key && leaseCompSort.dir === 'asc' ? 'desc' : 'asc' };
+  renderLeaseCompTable(lastLeaseCompRows || []);
+}
+function populateLeaseCompFilterOptions() {
+  if (leaseCompFilterOptionsReady) return;
+  const typeSel = document.getElementById('leaseCompTypeFilter');
+  const regionSel = document.getElementById('leaseCompRegionFilter');
+  const addOptions = (sel, values) => {
+    if (!sel) return;
+    values.forEach(v => { const opt = document.createElement('option'); opt.value = v; opt.textContent = v; sel.appendChild(opt); });
+  };
+  const rows = LEHIGH_VALLEY_LEASE_COMPS || [];
+  addOptions(typeSel, [...new Set(rows.map(c=>c.type).filter(Boolean))].sort());
+  addOptions(regionSel, [...new Set(rows.map(c=>c.region).filter(Boolean))].sort());
+  leaseCompFilterOptionsReady = true;
+}
+function getLeaseCompFilters() {
+  return {
+    search: (document.getElementById('leaseCompSearch')?.value || '').trim().toLowerCase(),
+    type: document.getElementById('leaseCompTypeFilter')?.value || '',
+    region: document.getElementById('leaseCompRegionFilter')?.value || ''
+  };
+}
+function leaseCompMatchesFilters(c, f) {
+  if (f.type && c.type !== f.type) return false;
+  if (f.region && c.region !== f.region) return false;
+  if (f.search) {
+    const haystack = [c.tenant, c.address, c.property, c.city, c.state, c.type, c.signedQuarter].join(' ').toLowerCase();
+    if (!haystack.includes(f.search)) return false;
+  }
+  return true;
+}
+function applyLeaseCompFilters() {
+  renderLeaseCompTable(lastLeaseCompRows || []);
+}
+function resetLeaseCompFilters() {
+  const ids = ['leaseCompSearch','leaseCompTypeFilter','leaseCompRegionFilter'];
+  ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  renderLeaseCompTable(lastLeaseCompRows || []);
+}
 function renderLeaseCompTable(rows) {
   const body = document.querySelector('#leaseCompTable tbody');
   if (!body) return;
-  const sorted = (rows || []).slice().sort((a,b)=>(b.sf||0)-(a.sf||0));
+  populateLeaseCompFilterOptions();
+  lastLeaseCompRows = (rows || []).slice();
+  const sorted = filteredSortedLeaseCompRows(lastLeaseCompRows);
+  document.querySelectorAll('#leaseCompTable th.sortable').forEach(th => {
+    const active = th.dataset.compSort === leaseCompSort.key;
+    th.classList.toggle('active', active);
+    const ind = th.querySelector('.sort-indicator');
+    if (ind) ind.textContent = active ? (leaseCompSort.dir === 'asc' ? '↑' : '↓') : '';
+  });
   body.innerHTML = sorted.map(c=>`<tr>
-    <td><b>${esc(c.tenant || 'Tenant not disclosed')}</b><br><span style='color:#677084'>${esc(c.property || '')}</span></td>
-    <td>${esc(c.address || '')}</td>
-    <td>${esc(c.city || '')}, ${esc(c.state || '')}</td>
-    <td>${c.sf ? Number(c.sf).toLocaleString() : ''}</td>
-    <td>${esc(c.type || '')}</td>
-    <td>${Number.isFinite(c.rent) && c.rent > 0 ? '$' + c.rent.toFixed(2) : ''}</td>
-    <td>${esc(c.expiration || '')}</td>
-    <td>${c.signedQuarter ? esc(c.signedQuarter) + '<br>' : ''}<span style='color:#677084'>${esc(c.source || '')}</span></td>
+    <td class='col-qtr'><b>${esc(c.signedQuarter || '')}</b></td>
+    <td class='col-tenant'><b>${esc(c.tenant || 'Tenant not disclosed')}</b><br><span style='color:#677084'>${esc(c.property || '')}</span></td>
+    <td class='col-address'>${esc(c.address || '')}</td>
+    <td class='col-city'>${esc(c.city || '')}, ${esc(c.state || '')}</td>
+    <td class='col-sf'>${c.sf ? Number(c.sf).toLocaleString() : ''}</td>
+    <td class='col-type'>${esc(c.type || '')}</td>
+    <td class='col-rent'>${Number.isFinite(c.rent) && c.rent > 0 ? '$' + c.rent.toFixed(2) : ''}</td>
+    <td class='col-escalation'>${esc(compEscalationLabel(c))}</td>
+    <td class='col-free-rent'>${esc(compFreeRentLabel(c))}</td>
+    <td class='col-tia'>${esc(compTiaLabel(c))}</td>
+    <td class='col-expiration'>${esc(c.expiration || '')}</td>
   </tr>`).join('');
-  body.querySelectorAll('tr').forEach((tr,i)=>tr.addEventListener('click',()=>{ const c=sorted[i]; if(c){ showLeaseCompDetail(c); map.setView([c.lat,c.lon], 12); } }));
+  body.querySelectorAll('tr').forEach((tr,i)=>tr.addEventListener('click',()=>{ const c=sorted[i]; if(c){ showLeaseCompDetail(c); if (map && Number.isFinite(c.lat) && Number.isFinite(c.lon)) map.setView([c.lat,c.lon], Math.max(map.getZoom(), 12)); } }));
+  updateLeaseCompPanelFromView(lastLeaseCompRows);
 }
 function updateLeaseCompSummary() {
   const rows = leaseCompRowsInMapView();
@@ -1348,6 +1568,7 @@ function updateLeaseCompSummary() {
   if (viewAnnualRent) viewAnnualRent.textContent = avg ? '$' + avg.toFixed(2) + ' avg. NNN rent' : '$0 avg. NNN rent';
   if (viewMarketBenchmark) viewMarketBenchmark.textContent = `${LEHIGH_VALLEY_LEASE_COMPS.length} map-ready comps`;
   renderLeaseCompTable(rows);
+  updateLeaseCompPanelFromView(rows);
 }
 function setSummaryForActiveView() {
   const compPanel = document.getElementById('compTablePanel');
@@ -1718,8 +1939,9 @@ function toggleContentView(view) {
   if (tableBtn) tableBtn.classList.toggle('active', !showInsights && !showComps);
   if (insightsBtn) insightsBtn.classList.toggle('active', showInsights);
   if (compsBtn) compsBtn.classList.toggle('active', showComps);
-  if (showComps) { renderLeaseCompTable(leaseCompRowsInMapView()); updateLeaseCompSummary(); }
+  if (showComps) { selectedLocationId = null; renderLeaseCompTable(leaseCompRowsInMapView()); updateLeaseCompSummary(); }
   else {
+    selectedLeaseCompId = null;
     const rowsForView = Array.isArray(currentInView) && currentInView.length ? currentInView : rowsInMapView(current);
     currentInView = rowsForView;
     updateInViewSummary(rowsForView);

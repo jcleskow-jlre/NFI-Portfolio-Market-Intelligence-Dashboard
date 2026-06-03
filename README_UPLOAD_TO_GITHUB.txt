@@ -1,12 +1,10 @@
-NFI Portfolio & Market Intelligence Dashboard - v96 Rock Hill comps update
+NFI Portfolio & Market Intelligence Dashboard v98
 
-Upload instructions:
-1. Upload index.html to the root of the GitHub Pages repository, replacing the current index.html.
-2. Commit changes to the main branch.
-3. Refresh the GitHub Pages link after the deployment completes.
+Upload the contents of this folder to GitHub Pages.
 
-Updates included:
-- Updated NFI Rock Hill, SC location at 845 Paragon Way / Riverwalk Business Park with Nov. 30, 2027 lease expiration, $5.80/SF NNN starting rent, 3.5% escalations, and no TI / no free rent note.
-- Added eight Rock Hill / Charlotte market lease comps from the provided graphic as a separate comp overlay/table dataset.
-- Preserved v95 portfolio map behavior, clustering, locations-in-view, bottom table and portfolio insights logic.
-- Kept comps as a separate layer that does not mutate NFI portfolio markers.
+Updates in v98:
+- Corrected Rock Hill / Charlotte market rent source to Savills Charlotte Q1 2026 research.
+- Rock Hill / York County market benchmark now uses $8.57/SF NNN and 11.2% vacancy.
+- Charlotte overall benchmark added at $8.03/SF NNN and 12.0% vacancy.
+- Embedded the Charlotte Q1 2026 market report pages for the market report modal.
+- Preserved v95/v97 portfolio map behavior, comp layer isolation, and no-auto-zoom comp toggle.

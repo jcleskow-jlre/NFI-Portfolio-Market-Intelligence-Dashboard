@@ -402,12 +402,6 @@ tr:hover { background:#fffbe1; cursor:pointer; }
 
     <div class='table-panel hidden' id='compTablePanel'>
       <div class='lease-comp-table-note'>Sample market lease comps are a separate overlay and table. Current comp sets include Lehigh Valley and Rock Hill / Charlotte market comps; plotted rows use available mapped coordinates.</div>
-      <div class='lease-comp-controls'>
-        <input id='leaseCompSearch' type='search' placeholder='Filter comps by tenant, address, city...' oninput='applyLeaseCompFilters()'>
-        <select id='leaseCompTypeFilter' onchange='applyLeaseCompFilters()'><option value=''>All types</option></select>
-        <select id='leaseCompRegionFilter' onchange='applyLeaseCompFilters()'><option value=''>All comp sets</option></select>
-        <button onclick='resetLeaseCompFilters()'>Clear</button>
-      </div>
       <table id='leaseCompTable'><thead><tr>
         <th class='sortable col-qtr' data-comp-sort='signedQuarter' onclick="setLeaseCompSort('signedQuarter')">Quarter signed <span class='sort-indicator'></span></th>
         <th class='sortable col-tenant' data-comp-sort='tenant' onclick="setLeaseCompSort('tenant')">Tenant <span class='sort-indicator'></span></th>
@@ -1343,6 +1337,10 @@ function isLeaseCompPanelActive() {
 function leaseCompRentLabel(c) {
   return Number.isFinite(c.rent) && c.rent > 0 ? `$${c.rent.toFixed(2)} PSF NNN` : 'Not available';
 }
+function leaseCompKey(c) {
+  if (!c) return '';
+  return String(c.id || [c.tenant, c.address, c.city, c.state, c.signedQuarter, c.sf, c.rent].join('|'));
+}
 function filteredSortedLeaseCompRows(rows) {
   const filters = getLeaseCompFilters();
   return (rows || [])
@@ -1380,7 +1378,7 @@ function showLeaseCompList(rows) {
     </div>
     <div class='panel-help'>Click a comp below to expand the full transaction detail.</div>
     <div class='location-mini-list'>${sorted.map(c=>`
-      <div class='location-mini-card' data-comp-id='${esc(c.id || '')}'>
+      <div class='location-mini-card' data-comp-id='${esc(leaseCompKey(c))}'>
         <div class='location-mini-title'>${esc(c.tenant || 'Tenant not disclosed')}</div>
         <div class='location-mini-sub'>${esc(c.address || c.property || '')}<br>${esc(c.city || '')}, ${esc(c.state || '')} | ${esc(c.region || 'Industrial lease comp')}</div>
         <div class='location-mini-metrics'>
@@ -1392,13 +1390,13 @@ function showLeaseCompList(rows) {
         </div>
       </div>`).join('')}</div>`;
   el.querySelectorAll('.location-mini-card').forEach(card=>card.addEventListener('click',()=>{
-    const c = LEHIGH_VALLEY_LEASE_COMPS.find(x=>String(x.id || '')===String(card.dataset.compId || ''));
-    if (c) { showLeaseCompDetail(c); if (map && Number.isFinite(c.lat) && Number.isFinite(c.lon)) map.setView([c.lat,c.lon], Math.max(map.getZoom(), 12)); }
+    const c = LEHIGH_VALLEY_LEASE_COMPS.find(x=>leaseCompKey(x)===String(card.dataset.compId || ''));
+    if (c) { showLeaseCompDetail(c); }
   }));
 }
 function updateLeaseCompPanelFromView(rows) {
   if (!isLeaseCompPanelActive()) return;
-  if (selectedLeaseCompId && (rows || []).some(c=>String(c.id || '')===String(selectedLeaseCompId))) return;
+  if (selectedLeaseCompId && (rows || []).some(c=>leaseCompKey(c)===String(selectedLeaseCompId))) return;
   showLeaseCompList(rows || []);
 }
 function backToLeaseCompList() {
@@ -1406,7 +1404,7 @@ function backToLeaseCompList() {
   showLeaseCompList(lastLeaseCompRows || leaseCompRowsInMapView());
 }
 function showLeaseCompDetail(c) {
-  selectedLeaseCompId = c && c.id ? c.id : null;
+  selectedLeaseCompId = c ? leaseCompKey(c) : null;
   const title = document.getElementById('detailPanelTitle');
   if (title) title.textContent = 'Selected lease comp';
   const panel = document.getElementById('detail');
